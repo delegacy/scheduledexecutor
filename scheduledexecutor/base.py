@@ -1,3 +1,5 @@
+"""Provides base classes and functions for ScheduledExecutor implementation."""
+
 from concurrent import futures
 import heapq
 import queue
@@ -10,10 +12,13 @@ class ScheduledFuture(futures.Future):
 
 
 class DelayQueue(queue.Queue):
+    """Implements a simple DelayQueue on top of :class:`queue.Queue`,
+    in which an element can only be taken when its delay has expired.
+    """
+
     def __init__(self, maxsize=0):
         super().__init__(maxsize)
 
-        # noinspection PyTypeChecker
         self.mutex = threading.RLock()
         self.not_empty = threading.Condition(self.mutex)
         self.not_full = threading.Condition(self.mutex)
@@ -22,7 +27,7 @@ class DelayQueue(queue.Queue):
         self.queue = []
 
     def _put(self, item):
-        item_time = item.time if item else 0.0
+        item_time = item.trigger_time if item else 0.0
         heapq.heappush(self.queue, (item_time, item))
 
     def _get(self):

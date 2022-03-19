@@ -1,3 +1,7 @@
+"""Provides ScheduledThreadPoolExecutor."""
+
+from __future__ import annotations
+
 import logging
 import sys
 import time
@@ -14,16 +18,43 @@ def _trigger_time(delay):
     return time.time() + delay
 
 
-class _ScheduledWorkItem(thread._WorkItem):
-    def __init__(self, future, fn, args, kwargs, *, executor, time, period):
+class _ScheduledFuture(base.ScheduledFuture):
+    """ScheduledThreadPoolExecutor-specific Future."""
+
+    def notify_cancel_if_cancelled(self):
+        with self._condition:
+            # defined in super. pylint: disable=access-member-before-definition
+            if self._state != futures_base.CANCELLED:
+                return False
+
+            self._state = futures_base.CANCELLED_AND_NOTIFIED
+            for waiter in self._waiters:
+                waiter.add_cancelled(self)
+            return True
+
+
+class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
+    """ScheduledThreadPoolExecutor-specific :class:`concurrent.futures.thread.WorkItem`."""
+
+    def __init__(
+        self,
+        future,
+        fn,
+        args,
+        kwargs,
+        *,
+        executor: ScheduledThreadPoolExecutor,
+        trigger_time,
+        period,
+    ):
         super().__init__(future, fn, args, kwargs)
 
-        self.executor = executor
-        self.time = time
+        self.executor: ScheduledThreadPoolExecutor = executor
+        self.trigger_time = trigger_time
         self.period = period
 
     def delay(self) -> float:
-        return self.time - time.time()
+        return self.trigger_time - time.time()
 
     def is_periodic(self) -> bool:
         return self.period != 0.0
@@ -31,9 +62,9 @@ class _ScheduledWorkItem(thread._WorkItem):
     def set_next_run_time(self) -> None:
         p = self.period
         if p > 0:
-            self.time += p
+            self.trigger_time += p
         else:
-            self.time = _trigger_time(-p)
+            self.trigger_time = _trigger_time(-p)
 
     def run(self) -> None:
         if not self.is_periodic():
@@ -45,29 +76,18 @@ class _ScheduledWorkItem(thread._WorkItem):
 
         try:
             self.fn(*self.args, **self.kwargs)
-        except BaseException as e:
+        except Exception as e:  # pylint:disable=broad-except
             self.future.set_exception(e)
-            self = None
+            self = None  # pylint:disable=self-cls-assignment
         else:
             self.set_next_run_time()
 
+            # pylint: disable=protected-access
             self.executor._re_execute_periodic(self)
 
 
 class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
-    class _ScheduledFuture(base.ScheduledFuture):
-        def __init__(self):
-            super().__init__()
-
-        def notify_cancel_if_cancelled(self):
-            with self._condition:
-                if self._state != futures_base.CANCELLED:
-                    return False
-
-                self._state = futures_base.CANCELLED_AND_NOTIFIED
-                for waiter in self._waiters:
-                    waiter.add_cancelled(self)
-                return True
+    """Extends :class:`futures.ThreadPoolExecutor` to support delayed and/or recurring tasks."""
 
     def __init__(
         self, max_workers=None, thread_name_prefix="", initializer=None, initargs=()
@@ -89,6 +109,7 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
             raise ValueError(f"initial_delay must be >= 0, not {initial_delay}")
 
         if sys.version_info >= (3, 9):
+            # pylint: disable=protected-access
             with self._shutdown_lock, thread._global_shutdown_lock:
                 return self._schedule_within_lock(
                     initial_delay, period, fn, *args, **kwargs
@@ -105,19 +126,19 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
 
         if self._shutdown:
             raise RuntimeError("cannot schedule new futures after shutdown")
-        if thread._shutdown:
+        if thread._shutdown:  # pylint: disable=protected-access
             raise RuntimeError(
                 "cannot schedule new futures after " "interpreter shutdown"
             )
 
-        f = ScheduledThreadPoolExecutor._ScheduledFuture()
+        f = _ScheduledFuture()
         w = _ScheduledWorkItem(
             f,
             fn,
             args,
             kwargs,
             executor=self,
-            time=_trigger_time(initial_delay),
+            trigger_time=_trigger_time(initial_delay),
             period=period,
         )
 
