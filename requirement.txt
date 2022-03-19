@@ -1,0 +1,4 @@
+pytest
+pylint
+build
+twine

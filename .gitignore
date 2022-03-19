@@ -6,6 +6,9 @@ __pycache__/
 # PyCharm
 .idea/
 
+# Visual Studio Code
+*.code-workspace
+
 # virtualenv
 venv/
 
