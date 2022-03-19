@@ -69,8 +69,9 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
                     waiter.add_cancelled(self)
                 return True
 
-    def __init__(self, max_workers=None, thread_name_prefix='',
-                 initializer=None, initargs=()):
+    def __init__(
+        self, max_workers=None, thread_name_prefix="", initializer=None, initargs=()
+    ):
         super().__init__(max_workers, thread_name_prefix, initializer, initargs)
 
         self._work_queue = base.DelayQueue()
@@ -85,62 +86,62 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
 
     def _schedule(self, initial_delay, period, fn, *args, **kwargs):
         if initial_delay < 0.0:
-            raise ValueError(f'initial_delay must be >= 0, not {initial_delay}')
+            raise ValueError(f"initial_delay must be >= 0, not {initial_delay}")
 
         if sys.version_info >= (3, 9):
             with self._shutdown_lock, thread._global_shutdown_lock:
-                return self._schedule_within_lock(initial_delay, period, fn, *args, **kwargs)
+                return self._schedule_within_lock(
+                    initial_delay, period, fn, *args, **kwargs
+                )
         else:
             with self._shutdown_lock:
-                return self._schedule_within_lock(initial_delay, period, fn, *args, **kwargs)
+                return self._schedule_within_lock(
+                    initial_delay, period, fn, *args, **kwargs
+                )
 
     def _schedule_within_lock(self, initial_delay, period, fn, *args, **kwargs):
         if self._broken:
             raise thread.BrokenThreadPool(self._broken)
 
         if self._shutdown:
-            raise RuntimeError('cannot schedule new futures after shutdown')
+            raise RuntimeError("cannot schedule new futures after shutdown")
         if thread._shutdown:
-            raise RuntimeError('cannot schedule new futures after '
-                            'interpreter shutdown')
+            raise RuntimeError(
+                "cannot schedule new futures after " "interpreter shutdown"
+            )
 
         f = ScheduledThreadPoolExecutor._ScheduledFuture()
         w = _ScheduledWorkItem(
-            f, fn, args, kwargs,
+            f,
+            fn,
+            args,
+            kwargs,
             executor=self,
             time=_trigger_time(initial_delay),
-            period=period)
+            period=period,
+        )
 
         self._delayed_execute(w)
         return f
 
-    def schedule(self,
-                 delay: float,
-                 fn: Callable,
-                 *args, **kwargs):
+    def schedule(self, delay: float, fn: Callable, *args, **kwargs):
         return self._schedule(delay, 0.0, fn, *args, **kwargs)
 
-    def schedule_at_fixed_rate(self,
-                               initial_delay: float,
-                               period: float,
-                               fn: Callable,
-                               *args, **kwargs):
+    def schedule_at_fixed_rate(
+        self, initial_delay: float, period: float, fn: Callable, *args, **kwargs
+    ):
         if period <= 0.0:
-            raise ValueError(f'period must be > 0, not {period}')
+            raise ValueError(f"period must be > 0, not {period}")
 
         return self._schedule(initial_delay, period, fn, *args, **kwargs)
 
-    def schedule_at_fixed_delay(self,
-                                initial_delay: float,
-                                delay: float,
-                                fn: Callable,
-                                *args, **kwargs):
+    def schedule_at_fixed_delay(
+        self, initial_delay: float, delay: float, fn: Callable, *args, **kwargs
+    ):
         if delay <= 0.0:
-            raise ValueError(f'delay must be > 0, not {delay}')
+            raise ValueError(f"delay must be > 0, not {delay}")
 
         return self._schedule(initial_delay, -delay, fn, *args, **kwargs)
 
-    def submit(self,
-               fn: Callable,
-               *args, **kwargs):
+    def submit(self, fn: Callable, *args, **kwargs):
         return self.schedule(0.0, fn, *args, **kwargs)

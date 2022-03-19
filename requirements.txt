@@ -1,4 +1,5 @@
 pytest
 pylint
+black
 build
 twine
