@@ -13,7 +13,9 @@ class ScheduledProcessPoolExecutor:
         def __init__(self):
             super().__init__()
 
-            self._future: Union[None, thread._ScheduledFuture, base.ScheduledFuture] = None
+            self._future: Union[
+                None, thread._ScheduledFuture, base.ScheduledFuture
+            ] = None
 
         def cancel(self) -> bool:
             if self._future:
@@ -21,15 +23,23 @@ class ScheduledProcessPoolExecutor:
 
             return super().cancel()
 
-
-    def __init__(self, max_workers=None, mp_context=None,
-                 initializer=None, initargs=()):
+    def __init__(
+        self, max_workers=None, mp_context=None, initializer=None, initargs=()
+    ):
 
         self._thread_executor = thread.ScheduledThreadPoolExecutor(1)
         self._process_executor = process.ProcessPoolExecutor(
-            max_workers, mp_context, initializer, initargs)
+            max_workers, mp_context, initializer, initargs
+        )
 
-    def _decorate_task(self, scheduled_future: base.ScheduledFuture, is_periodic: bool, fn: Callable, args, kwargs):
+    def _decorate_task(
+        self,
+        scheduled_future: base.ScheduledFuture,
+        is_periodic: bool,
+        fn: Callable,
+        args,
+        kwargs,
+    ):
         def wrapper():
             pf = self._process_executor.submit(fn, *args, **kwargs)
             pf.add_done_callback(done_callback)
@@ -59,41 +69,36 @@ class ScheduledProcessPoolExecutor:
 
         return done_callback
 
-    def schedule(self,
-                 delay: float,
-                 fn: Callable,
-                 *args, **kwargs) -> base.ScheduledFuture:
+    def schedule(
+        self, delay: float, fn: Callable, *args, **kwargs
+    ) -> base.ScheduledFuture:
 
         sf = ScheduledProcessPoolExecutor._ScheduledFuture()
         sf._future = self._thread_executor.schedule(
-            delay, self._decorate_task(sf, False, fn, args, kwargs))
+            delay, self._decorate_task(sf, False, fn, args, kwargs)
+        )
         sf._future.add_done_callback(self._tf_done_callback(sf))
 
         return sf
 
-    def schedule_at_fixed_rate(self,
-                               initial_delay: float,
-                               period: float,
-                               fn: Callable,
-                               *args, **kwargs) -> base.ScheduledFuture:
+    def schedule_at_fixed_rate(
+        self, initial_delay: float, period: float, fn: Callable, *args, **kwargs
+    ) -> base.ScheduledFuture:
 
         sf = ScheduledProcessPoolExecutor._ScheduledFuture()
-        sf._future = (
-            self._thread_executor.schedule_at_fixed_rate(
-                initial_delay, period,
-                self._decorate_task(sf, True, fn, args, kwargs)))
+        sf._future = self._thread_executor.schedule_at_fixed_rate(
+            initial_delay, period, self._decorate_task(sf, True, fn, args, kwargs)
+        )
         sf._future.add_done_callback(self._tf_done_callback(sf))
 
         return sf
 
-    def schedule_at_fixed_delay(self,
-                                initial_delay: float,
-                                delay: float,
-                                fn: Callable,
-                                *args, **kwargs) -> base.ScheduledFuture:
+    def schedule_at_fixed_delay(
+        self, initial_delay: float, delay: float, fn: Callable, *args, **kwargs
+    ) -> base.ScheduledFuture:
 
         if delay <= 0.0:
-            raise ValueError(f'delay must be > 0, not {delay}')
+            raise ValueError(f"delay must be > 0, not {delay}")
 
         def done_callback(f):
             try:
@@ -111,7 +116,5 @@ class ScheduledProcessPoolExecutor:
 
         return sf
 
-    def submit(self,
-               fn: Callable,
-               *args, **kwargs) -> futures.Future:
+    def submit(self, fn: Callable, *args, **kwargs) -> futures.Future:
         return self.schedule(0.0, fn, *args, **kwargs)

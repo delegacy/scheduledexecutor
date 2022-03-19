@@ -8,15 +8,15 @@ from typing import Any
 
 class Counter(object):
     def __init__(self):
-        with tempfile.NamedTemporaryFile('w') as f:
+        with tempfile.NamedTemporaryFile("w") as f:
             self.filename = f.name
 
     def increment(self):
-        with open(self.filename, 'a') as f:
-            f.write('.')
+        with open(self.filename, "a") as f:
+            f.write(".")
 
     def value(self):
-        with open(self.filename, 'r') as f:
+        with open(self.filename, "r") as f:
             return len(f.readline())
 
 
