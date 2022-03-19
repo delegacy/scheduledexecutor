@@ -15,7 +15,7 @@ def _trigger_time(delay):
 
 
 class _ScheduledWorkItem(thread._WorkItem):
-    def __init__(self, future, fn, args, kwargs, /, executor, time, period):
+    def __init__(self, future, fn, args, kwargs, *, executor, time, period):
         super().__init__(future, fn, args, kwargs)
 
         self.executor = executor
@@ -83,7 +83,7 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
         self._work_queue.put(work_item)
         self._adjust_thread_count()
 
-    def _schedule(self, initial_delay, period, fn, /, *args, **kwargs):
+    def _schedule(self, initial_delay, period, fn, *args, **kwargs):
         if initial_delay < 0.0:
             raise ValueError(f'initial_delay must be >= 0, not {initial_delay}')
 
@@ -94,7 +94,7 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
             with self._shutdown_lock:
                 return self._schedule_within_lock(initial_delay, period, fn, *args, **kwargs)
 
-    def _schedule_within_lock(self, initial_delay, period, fn, /, *args, **kwargs):
+    def _schedule_within_lock(self, initial_delay, period, fn, *args, **kwargs):
         if self._broken:
             raise thread.BrokenThreadPool(self._broken)
 
@@ -117,14 +117,14 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
     def schedule(self,
                  delay: float,
                  fn: Callable,
-                 /, *args, **kwargs):
+                 *args, **kwargs):
         return self._schedule(delay, 0.0, fn, *args, **kwargs)
 
     def schedule_at_fixed_rate(self,
                                initial_delay: float,
                                period: float,
                                fn: Callable,
-                               /, *args, **kwargs):
+                               *args, **kwargs):
         if period <= 0.0:
             raise ValueError(f'period must be > 0, not {period}')
 
@@ -134,7 +134,7 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
                                 initial_delay: float,
                                 delay: float,
                                 fn: Callable,
-                                /, *args, **kwargs):
+                                *args, **kwargs):
         if delay <= 0.0:
             raise ValueError(f'delay must be > 0, not {delay}')
 
@@ -142,5 +142,5 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
 
     def submit(self,
                fn: Callable,
-               /, *args, **kwargs):
+               *args, **kwargs):
         return self.schedule(0.0, fn, *args, **kwargs)

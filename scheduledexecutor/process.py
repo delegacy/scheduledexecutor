@@ -62,7 +62,7 @@ class ScheduledProcessPoolExecutor:
     def schedule(self,
                  delay: float,
                  fn: Callable,
-                 /, *args, **kwargs) -> base.ScheduledFuture:
+                 *args, **kwargs) -> base.ScheduledFuture:
 
         sf = ScheduledProcessPoolExecutor._ScheduledFuture()
         sf._future = self._thread_executor.schedule(
@@ -75,7 +75,7 @@ class ScheduledProcessPoolExecutor:
                                initial_delay: float,
                                period: float,
                                fn: Callable,
-                               /, *args, **kwargs) -> base.ScheduledFuture:
+                               *args, **kwargs) -> base.ScheduledFuture:
 
         sf = ScheduledProcessPoolExecutor._ScheduledFuture()
         sf._future = (
@@ -90,7 +90,7 @@ class ScheduledProcessPoolExecutor:
                                 initial_delay: float,
                                 delay: float,
                                 fn: Callable,
-                                /, *args, **kwargs) -> base.ScheduledFuture:
+                                *args, **kwargs) -> base.ScheduledFuture:
 
         if delay <= 0.0:
             raise ValueError(f'delay must be > 0, not {delay}')
@@ -113,5 +113,5 @@ class ScheduledProcessPoolExecutor:
 
     def submit(self,
                fn: Callable,
-               /, *args, **kwargs) -> futures.Future:
+               *args, **kwargs) -> futures.Future:
         return self.schedule(0.0, fn, *args, **kwargs)
