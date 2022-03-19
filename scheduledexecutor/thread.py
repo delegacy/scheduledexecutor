@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from concurrent import futures
 from concurrent.futures import thread, _base as futures_base
@@ -86,25 +87,32 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
         if initial_delay < 0.0:
             raise ValueError(f'initial_delay must be >= 0, not {initial_delay}')
 
-        with self._shutdown_lock, thread._global_shutdown_lock:
-            if self._broken:
-                raise thread.BrokenThreadPool(self._broken)
+        if sys.version_info >= (3, 9):
+            with self._shutdown_lock, thread._global_shutdown_lock:
+                return self._schedule_within_lock(initial_delay, period, fn, *args, **kwargs)
+        else:
+            with self._shutdown_lock:
+                return self._schedule_within_lock(initial_delay, period, fn, *args, **kwargs)
 
-            if self._shutdown:
-                raise RuntimeError('cannot schedule new futures after shutdown')
-            if thread._shutdown:
-                raise RuntimeError('cannot schedule new futures after '
-                                   'interpreter shutdown')
+    def _schedule_within_lock(self, initial_delay, period, fn, /, *args, **kwargs):
+        if self._broken:
+            raise thread.BrokenThreadPool(self._broken)
 
-            f = ScheduledThreadPoolExecutor._ScheduledFuture()
-            w = _ScheduledWorkItem(
-                f, fn, args, kwargs,
-                executor=self,
-                time=_trigger_time(initial_delay),
-                period=period)
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+        if thread._shutdown:
+            raise RuntimeError('cannot schedule new futures after '
+                            'interpreter shutdown')
 
-            self._delayed_execute(w)
-            return f
+        f = ScheduledThreadPoolExecutor._ScheduledFuture()
+        w = _ScheduledWorkItem(
+            f, fn, args, kwargs,
+            executor=self,
+            time=_trigger_time(initial_delay),
+            period=period)
+
+        self._delayed_execute(w)
+        return f
 
     def schedule(self,
                  delay: float,
