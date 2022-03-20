@@ -6,6 +6,6 @@ from scheduledexecutor.thread import *
 
 __all__ = (
     "ScheduledFuture",
-    "ScheduledThreadPoolExecutor",
-    "ScheduledProcessPoolExecutor",
+    "ThreadPoolExecutor",
+    "ProcessPoolExecutor",
 )

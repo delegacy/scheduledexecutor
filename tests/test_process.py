@@ -1,4 +1,4 @@
-"""Tests ScheduledProcessPoolExecutor."""
+"""Tests ProcessPoolExecutor."""
 
 import os
 import random
@@ -7,13 +7,13 @@ import time
 
 import pytest
 
-import scheduledexecutor
+import scheduledexecutor as executors
 from tests import testing
 
 
 def test_submit():
     x = random.random()
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     f = executor.submit(
         testing.echo,
         x,
@@ -26,7 +26,7 @@ def test_submit():
 
 def test_schedule():
     x = random.random()
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     t = time.time()
     f = executor.schedule(
         1.0,
@@ -41,7 +41,7 @@ def test_schedule():
 
 
 def test_schedule_should_raise_when_negative_delay():
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     with pytest.raises(ValueError):
         executor.schedule(
             -1.0,
@@ -55,7 +55,7 @@ def test_schedule_should_raise_when_negative_delay():
 
 def test_schedule_at_fixed_rate():
     counter = testing.Counter()
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     f = executor.schedule_at_fixed_rate(
         1.0,
         1.0,
@@ -71,7 +71,7 @@ def test_schedule_at_fixed_rate():
 
 
 def test_schedule_at_fixed_rate_should_raise_when_negative_period():
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     with pytest.raises(ValueError):
         executor.schedule_at_fixed_rate(
             1.0,
@@ -86,7 +86,7 @@ def test_schedule_at_fixed_rate_should_raise_when_negative_period():
 
 def test_schedule_at_fixed_delay():
     counter = testing.Counter()
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     f = executor.schedule_at_fixed_delay(
         1.0,
         1.0,
@@ -102,7 +102,7 @@ def test_schedule_at_fixed_delay():
 
 
 def test_schedule_at_fixed_delay_should_raise_when_negative_delay():
-    executor = scheduledexecutor.ScheduledProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor()
     with pytest.raises(ValueError):
         executor.schedule_at_fixed_delay(
             1.0,

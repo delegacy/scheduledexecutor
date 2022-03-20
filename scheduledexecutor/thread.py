@@ -8,7 +8,7 @@ import sys
 import time
 from concurrent import futures
 from concurrent.futures import _base, thread
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from scheduledexecutor import base
 
@@ -18,7 +18,7 @@ def _trigger_time(delay: float) -> float:
 
 
 class _ScheduledFuture(base.ScheduledFuture):
-    """ScheduledThreadPoolExecutor-specific Future."""
+    """ThreadPoolExecutor-specific Future."""
 
     def notify_cancel_if_cancelled(self) -> bool:
         with self._condition:
@@ -33,7 +33,7 @@ class _ScheduledFuture(base.ScheduledFuture):
 
 
 class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
-    """ScheduledThreadPoolExecutor-specific :class:`concurrent.futures.thread.WorkItem`."""
+    """ThreadPoolExecutor-specific :class:`concurrent.futures.thread.WorkItem`."""
 
     def __init__(
         self,
@@ -42,13 +42,13 @@ class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
         args: Tuple[Any, ...],
         kwargs: Dict[str, Any],
         *,
-        executor: ScheduledThreadPoolExecutor,
+        executor: ThreadPoolExecutor,
         trigger_time: float,
         period: float,
     ):
         super().__init__(future, fn, args, kwargs)
 
-        self.executor: ScheduledThreadPoolExecutor = executor
+        self.executor: ThreadPoolExecutor = executor
         self.trigger_time: float = trigger_time
         self.period: float = period
 
@@ -85,11 +85,15 @@ class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
             self.executor._re_execute_periodic(self)
 
 
-class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
+class ThreadPoolExecutor(futures.ThreadPoolExecutor):
     """Extends :class:`futures.ThreadPoolExecutor` to support delayed and/or recurring tasks."""
 
     def __init__(
-        self, max_workers=None, thread_name_prefix="", initializer=None, initargs=()
+        self,
+        max_workers: Optional[int] = None,
+        thread_name_prefix: str = "",
+        initializer: Callable = None,
+        initargs: Tuple[Any, ...] = (),
     ):
         super().__init__(max_workers, thread_name_prefix, initializer, initargs)
 
@@ -103,7 +107,9 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
         self._work_queue.put(work_item)
         self._adjust_thread_count()
 
-    def _schedule(self, initial_delay, period, fn, *args, **kwargs) -> _ScheduledFuture:
+    def _schedule(
+        self, initial_delay: float, period: float, fn: Callable, *args, **kwargs
+    ) -> _ScheduledFuture:
         if initial_delay < 0.0:
             raise ValueError(f"initial_delay must be >= 0, not {initial_delay}")
 

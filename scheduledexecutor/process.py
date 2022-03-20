@@ -34,16 +34,14 @@ def _tf_done_callback(future: base.ScheduledFuture):
     return wrapper
 
 
-class ScheduledProcessPoolExecutor:
+class ProcessPoolExecutor:
     """Implements :class:`process.ProcessPoolExecutor` to support delayed and/or recurring tasks."""
 
     def __init__(
         self, max_workers=None, mp_context=None, initializer=None, initargs=()
     ):
 
-        self._thread_executor: thread.ScheduledThreadPoolExecutor = (
-            thread.ScheduledThreadPoolExecutor(1)
-        )
+        self._thread_executor: thread.ThreadPoolExecutor = thread.ThreadPoolExecutor(1)
         self._process_executor: process.ProcessPoolExecutor = (
             process.ProcessPoolExecutor(max_workers, mp_context, initializer, initargs)
         )
