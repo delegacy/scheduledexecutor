@@ -1,27 +1,29 @@
-import logging
+"""Provides ScheduledProcessPoolExecutor."""
+
 from concurrent import futures
 from concurrent.futures import process
-from typing import Optional, Callable, Union
+from typing import Callable, Union
 
 from scheduledexecutor import base, thread
 
-logger = logging.getLogger(__name__)
+
+class _ScheduledFuture(base.ScheduledFuture):
+    """ScheduledProcessPoolExecutor-specific :class:`concurrent.futures.Future`."""
+
+    def __init__(self):
+        super().__init__()
+
+        self.future: Union[None, thread._ScheduledFuture, base.ScheduledFuture] = None
+
+    def cancel(self) -> bool:
+        if self.future:
+            self.future.cancel()
+
+        return super().cancel()
 
 
 class ScheduledProcessPoolExecutor:
-    class _ScheduledFuture(base.ScheduledFuture):
-        def __init__(self):
-            super().__init__()
-
-            self._future: Union[
-                None, thread._ScheduledFuture, base.ScheduledFuture
-            ] = None
-
-        def cancel(self) -> bool:
-            if self._future:
-                self._future.cancel()
-
-            return super().cancel()
+    """Implements :class:`process.ProcessPoolExecutor` to support delayed and/or recurring tasks."""
 
     def __init__(
         self, max_workers=None, mp_context=None, initializer=None, initargs=()
@@ -51,7 +53,7 @@ class ScheduledProcessPoolExecutor:
                     scheduled_future.set_result(result)
             except futures.CancelledError:
                 pass
-            except Exception as e:
+            except Exception as e:  # pylint:disable=broad-except
                 scheduled_future.set_exception(e)
                 if is_periodic:
                     scheduled_future.tf.set_exception(e)
@@ -64,7 +66,7 @@ class ScheduledProcessPoolExecutor:
                 tf.result()
             except futures.CancelledError:
                 pass
-            except Exception as e:
+            except Exception as e:  # pylint:disable=broad-except
                 scheduled_future.set_exception(e)
 
         return done_callback
@@ -73,11 +75,11 @@ class ScheduledProcessPoolExecutor:
         self, delay: float, fn: Callable, *args, **kwargs
     ) -> base.ScheduledFuture:
 
-        sf = ScheduledProcessPoolExecutor._ScheduledFuture()
-        sf._future = self._thread_executor.schedule(
+        sf = _ScheduledFuture()
+        sf.future = self._thread_executor.schedule(
             delay, self._decorate_task(sf, False, fn, args, kwargs)
         )
-        sf._future.add_done_callback(self._tf_done_callback(sf))
+        sf.future.add_done_callback(self._tf_done_callback(sf))
 
         return sf
 
@@ -85,11 +87,11 @@ class ScheduledProcessPoolExecutor:
         self, initial_delay: float, period: float, fn: Callable, *args, **kwargs
     ) -> base.ScheduledFuture:
 
-        sf = ScheduledProcessPoolExecutor._ScheduledFuture()
-        sf._future = self._thread_executor.schedule_at_fixed_rate(
+        sf = _ScheduledFuture()
+        sf.future = self._thread_executor.schedule_at_fixed_rate(
             initial_delay, period, self._decorate_task(sf, True, fn, args, kwargs)
         )
-        sf._future.add_done_callback(self._tf_done_callback(sf))
+        sf.future.add_done_callback(self._tf_done_callback(sf))
 
         return sf
 
@@ -103,16 +105,16 @@ class ScheduledProcessPoolExecutor:
         def done_callback(f):
             try:
                 f.result()
-                sf._future = self.schedule(delay, fn, *args, **kwargs)
-                sf._future.add_done_callback(done_callback)
+                sf.future = self.schedule(delay, fn, *args, **kwargs)
+                sf.future.add_done_callback(done_callback)
             except futures.CancelledError:
                 pass
-            except Exception as e:
+            except Exception as e:  # pylint:disable=broad-except
                 sf.set_exception(e)
 
-        sf = ScheduledProcessPoolExecutor._ScheduledFuture()
-        sf._future = self.schedule(initial_delay, fn, *args, **kwargs)
-        sf._future.add_done_callback(done_callback)
+        sf = _ScheduledFuture()
+        sf.future = self.schedule(initial_delay, fn, *args, **kwargs)
+        sf.future.add_done_callback(done_callback)
 
         return sf
 
