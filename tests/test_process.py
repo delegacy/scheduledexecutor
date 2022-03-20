@@ -1,3 +1,5 @@
+"""Tests ScheduledProcessPoolExecutor."""
+
 import os
 import random
 import threading

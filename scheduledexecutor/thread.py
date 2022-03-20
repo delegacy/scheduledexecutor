@@ -2,32 +2,31 @@
 
 from __future__ import annotations
 
-import logging
+import contextlib
+import queue
 import sys
 import time
 from concurrent import futures
-from concurrent.futures import thread, _base as futures_base
-from typing import Callable
+from concurrent.futures import _base, thread
+from typing import Any, Callable, Dict, Tuple
 
 from scheduledexecutor import base
 
-logger = logging.getLogger(__name__)
 
-
-def _trigger_time(delay):
+def _trigger_time(delay: float) -> float:
     return time.time() + delay
 
 
 class _ScheduledFuture(base.ScheduledFuture):
     """ScheduledThreadPoolExecutor-specific Future."""
 
-    def notify_cancel_if_cancelled(self):
+    def notify_cancel_if_cancelled(self) -> bool:
         with self._condition:
             # defined in super. pylint: disable=access-member-before-definition
-            if self._state != futures_base.CANCELLED:
+            if self._state != _base.CANCELLED:
                 return False
 
-            self._state = futures_base.CANCELLED_AND_NOTIFIED
+            self._state = _base.CANCELLED_AND_NOTIFIED
             for waiter in self._waiters:
                 waiter.add_cancelled(self)
             return True
@@ -38,20 +37,20 @@ class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
 
     def __init__(
         self,
-        future,
-        fn,
-        args,
-        kwargs,
+        future: _ScheduledFuture,
+        fn: Callable,
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
         *,
         executor: ScheduledThreadPoolExecutor,
-        trigger_time,
-        period,
+        trigger_time: float,
+        period: float,
     ):
         super().__init__(future, fn, args, kwargs)
 
         self.executor: ScheduledThreadPoolExecutor = executor
-        self.trigger_time = trigger_time
-        self.period = period
+        self.trigger_time: float = trigger_time
+        self.period: float = period
 
     def delay(self) -> float:
         return self.trigger_time - time.time()
@@ -94,63 +93,62 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
     ):
         super().__init__(max_workers, thread_name_prefix, initializer, initargs)
 
-        self._work_queue = base.DelayQueue()
+        self._work_queue: queue.Queue = base.DelayQueue()
 
-    def _delayed_execute(self, work_item: _ScheduledWorkItem):
+    def _delayed_execute(self, work_item: _ScheduledWorkItem) -> None:
         self._work_queue.put(work_item)
         self._adjust_thread_count()
 
-    def _re_execute_periodic(self, work_item: _ScheduledWorkItem):
+    def _re_execute_periodic(self, work_item: _ScheduledWorkItem) -> None:
         self._work_queue.put(work_item)
         self._adjust_thread_count()
 
-    def _schedule(self, initial_delay, period, fn, *args, **kwargs):
+    def _schedule(self, initial_delay, period, fn, *args, **kwargs) -> _ScheduledFuture:
         if initial_delay < 0.0:
             raise ValueError(f"initial_delay must be >= 0, not {initial_delay}")
 
         if sys.version_info >= (3, 9):
             # pylint: disable=protected-access
-            with self._shutdown_lock, thread._global_shutdown_lock:
-                return self._schedule_within_lock(
-                    initial_delay, period, fn, *args, **kwargs
-                )
+            ctx_managers = [self._shutdown_lock, thread._global_shutdown_lock]
         else:
-            with self._shutdown_lock:
-                return self._schedule_within_lock(
-                    initial_delay, period, fn, *args, **kwargs
+            ctx_managers = [self._shutdown_lock]
+
+        with contextlib.ExitStack() as stack:
+            for ctx_manager in ctx_managers:
+                stack.enter_context(ctx_manager)
+
+            if self._broken:
+                raise thread.BrokenThreadPool(self._broken)
+
+            if self._shutdown:
+                raise RuntimeError("cannot schedule new futures after shutdown")
+            if thread._shutdown:  # pylint: disable=protected-access
+                raise RuntimeError(
+                    "cannot schedule new futures after interpreter shutdown"
                 )
 
-    def _schedule_within_lock(self, initial_delay, period, fn, *args, **kwargs):
-        if self._broken:
-            raise thread.BrokenThreadPool(self._broken)
-
-        if self._shutdown:
-            raise RuntimeError("cannot schedule new futures after shutdown")
-        if thread._shutdown:  # pylint: disable=protected-access
-            raise RuntimeError(
-                "cannot schedule new futures after " "interpreter shutdown"
+            f = _ScheduledFuture()
+            w = _ScheduledWorkItem(
+                f,
+                fn,
+                args,
+                kwargs,
+                executor=self,
+                trigger_time=_trigger_time(initial_delay),
+                period=period,
             )
 
-        f = _ScheduledFuture()
-        w = _ScheduledWorkItem(
-            f,
-            fn,
-            args,
-            kwargs,
-            executor=self,
-            trigger_time=_trigger_time(initial_delay),
-            period=period,
-        )
+            self._delayed_execute(w)
+            return f
 
-        self._delayed_execute(w)
-        return f
-
-    def schedule(self, delay: float, fn: Callable, *args, **kwargs):
+    def schedule(
+        self, delay: float, fn: Callable, *args, **kwargs
+    ) -> base.ScheduledFuture:
         return self._schedule(delay, 0.0, fn, *args, **kwargs)
 
     def schedule_at_fixed_rate(
         self, initial_delay: float, period: float, fn: Callable, *args, **kwargs
-    ):
+    ) -> base.ScheduledFuture:
         if period <= 0.0:
             raise ValueError(f"period must be > 0, not {period}")
 
@@ -158,11 +156,11 @@ class ScheduledThreadPoolExecutor(futures.ThreadPoolExecutor):
 
     def schedule_at_fixed_delay(
         self, initial_delay: float, delay: float, fn: Callable, *args, **kwargs
-    ):
+    ) -> base.ScheduledFuture:
         if delay <= 0.0:
             raise ValueError(f"delay must be > 0, not {delay}")
 
         return self._schedule(initial_delay, -delay, fn, *args, **kwargs)
 
-    def submit(self, fn: Callable, *args, **kwargs):
+    def submit(self, fn: Callable, *args, **kwargs) -> base.ScheduledFuture:
         return self.schedule(0.0, fn, *args, **kwargs)

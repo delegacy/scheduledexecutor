@@ -1,4 +1,4 @@
-"""Provides ScheduledExecutors that enable delayed and/or recurruring tasks."""
+"""Provides ScheduledExecutors that enable delayed and/or recurring tasks."""
 
 from scheduledexecutor.base import *
 from scheduledexecutor.process import *

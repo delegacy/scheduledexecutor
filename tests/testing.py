@@ -1,3 +1,5 @@
+"""Provides common functionalities for testing."""
+
 import enum
 import os
 import tempfile
@@ -7,16 +9,18 @@ from typing import Any
 
 
 class Counter(object):
+    """A simple counter that can be used by several processes."""
+
     def __init__(self):
         with tempfile.NamedTemporaryFile("w") as f:
             self.filename = f.name
 
     def increment(self):
-        with open(self.filename, "a") as f:
+        with open(self.filename, "a", encoding="ascii") as f:
             f.write(".")
 
     def value(self):
-        with open(self.filename, "r") as f:
+        with open(self.filename, "r", encoding="ascii") as f:
             return len(f.readline())
 
 

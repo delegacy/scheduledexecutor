@@ -2,7 +2,7 @@
 
 from concurrent import futures
 from concurrent.futures import process
-from typing import Callable, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 from scheduledexecutor import base, thread
 
@@ -22,6 +22,18 @@ class _ScheduledFuture(base.ScheduledFuture):
         return super().cancel()
 
 
+def _tf_done_callback(future: base.ScheduledFuture):
+    def wrapper(tf: futures.Future):
+        try:
+            tf.result()
+        except futures.CancelledError:
+            pass
+        except Exception as e:  # pylint:disable=broad-except
+            future.set_exception(e)
+
+    return wrapper
+
+
 class ScheduledProcessPoolExecutor:
     """Implements :class:`process.ProcessPoolExecutor` to support delayed and/or recurring tasks."""
 
@@ -29,47 +41,38 @@ class ScheduledProcessPoolExecutor:
         self, max_workers=None, mp_context=None, initializer=None, initargs=()
     ):
 
-        self._thread_executor = thread.ScheduledThreadPoolExecutor(1)
-        self._process_executor = process.ProcessPoolExecutor(
-            max_workers, mp_context, initializer, initargs
+        self._thread_executor: thread.ScheduledThreadPoolExecutor = (
+            thread.ScheduledThreadPoolExecutor(1)
+        )
+        self._process_executor: process.ProcessPoolExecutor = (
+            process.ProcessPoolExecutor(max_workers, mp_context, initializer, initargs)
         )
 
     def _decorate_task(
         self,
-        scheduled_future: base.ScheduledFuture,
+        future: base.ScheduledFuture,
         is_periodic: bool,
         fn: Callable,
-        args,
-        kwargs,
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
     ):
-        def wrapper():
-            pf = self._process_executor.submit(fn, *args, **kwargs)
-            pf.add_done_callback(done_callback)
-
-        def done_callback(pf: futures.Future):
+        def pf_done_callback(pf: futures.Future):
             try:
                 result = pf.result()
                 if not is_periodic:
-                    scheduled_future.set_result(result)
+                    future.set_result(result)
             except futures.CancelledError:
                 pass
             except Exception as e:  # pylint:disable=broad-except
-                scheduled_future.set_exception(e)
-                if is_periodic:
-                    scheduled_future.tf.set_exception(e)
+                future.set_exception(e)
+                if is_periodic and hasattr(future, "future"):
+                    future.future.set_exception(e)
+
+        def wrapper():
+            pf = self._process_executor.submit(fn, *args, **kwargs)
+            pf.add_done_callback(pf_done_callback)
 
         return wrapper
-
-    def _tf_done_callback(self, scheduled_future: base.ScheduledFuture):
-        def done_callback(tf: futures.Future):
-            try:
-                tf.result()
-            except futures.CancelledError:
-                pass
-            except Exception as e:  # pylint:disable=broad-except
-                scheduled_future.set_exception(e)
-
-        return done_callback
 
     def schedule(
         self, delay: float, fn: Callable, *args, **kwargs
@@ -79,7 +82,7 @@ class ScheduledProcessPoolExecutor:
         sf.future = self._thread_executor.schedule(
             delay, self._decorate_task(sf, False, fn, args, kwargs)
         )
-        sf.future.add_done_callback(self._tf_done_callback(sf))
+        sf.future.add_done_callback(_tf_done_callback(sf))
 
         return sf
 
@@ -91,7 +94,7 @@ class ScheduledProcessPoolExecutor:
         sf.future = self._thread_executor.schedule_at_fixed_rate(
             initial_delay, period, self._decorate_task(sf, True, fn, args, kwargs)
         )
-        sf.future.add_done_callback(self._tf_done_callback(sf))
+        sf.future.add_done_callback(_tf_done_callback(sf))
 
         return sf
 

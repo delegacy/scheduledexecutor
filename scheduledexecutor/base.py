@@ -1,10 +1,10 @@
 """Provides base classes and functions for ScheduledExecutor implementation."""
 
-from concurrent import futures
 import heapq
 import queue
 import threading
 import time
+from concurrent import futures
 
 
 class ScheduledFuture(futures.Future):
