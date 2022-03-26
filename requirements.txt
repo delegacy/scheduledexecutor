@@ -2,6 +2,5 @@ pytest
 pytest-cov
 pylint
 black
-# sphinx
 # build
 # twine

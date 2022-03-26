@@ -7,5 +7,4 @@
 [![PyPI Wheel](https://img.shields.io/pypi/wheel/scheduledexecutor.svg)](https://pypi.org/project/scheduledexecutor/)
 [![Supported versions](https://img.shields.io/pypi/pyversions/scheduledexecutor.svg)](https://pypi.org/project/scheduledexecutor/)
 [![License](https://img.shields.io/pypi/l/scheduledexecutor.svg)](https://pypi.org/project/scheduledexecutor/)
-
-scheduledexecutor package provides executors 
+[![Documentation Status](https://readthedocs.org/projects/scheduledexecutor/badge/?version=latest)](https://scheduledexecutor.readthedocs.io/en/latest/?badge=latest)
