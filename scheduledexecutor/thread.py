@@ -1,4 +1,4 @@
-"""Provides ScheduledThreadPoolExecutor."""
+"""Provides :class:`ThreadPoolExecutor`."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def _trigger_time(delay: float) -> float:
 
 
 class _ScheduledFuture(base.ScheduledFuture):
-    """ThreadPoolExecutor-specific Future."""
+    """:class:`ThreadPoolExecutor`-specific :class:`scheduledexecutor.base.ScheduledFuture`."""
 
     def notify_cancel_if_cancelled(self) -> bool:
         with self._condition:
@@ -33,7 +33,7 @@ class _ScheduledFuture(base.ScheduledFuture):
 
 
 class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
-    """ThreadPoolExecutor-specific :class:`concurrent.futures.thread.WorkItem`."""
+    """:class:`ThreadPoolExecutor`-specific :class:`concurrent.futures.thread._WorkItem`."""
 
     def __init__(
         self,
@@ -86,7 +86,7 @@ class _ScheduledWorkItem(thread._WorkItem):  # pylint: disable=protected-access
 
 
 class ThreadPoolExecutor(futures.ThreadPoolExecutor):
-    """Extends :class:`futures.ThreadPoolExecutor` to support delayed and/or recurring tasks."""
+    """Extends :class:`concurrent.futures.ThreadPoolExecutor` to enable delayed and/or recurring tasks."""
 
     def __init__(
         self,

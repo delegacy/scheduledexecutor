@@ -24,3 +24,6 @@ coverage.xml
 # build
 dist/
 *.egg-info/
+
+# sphinx
+_build/

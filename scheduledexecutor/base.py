@@ -1,4 +1,4 @@
-"""Provides base classes and functions for ScheduledExecutor implementation."""
+"""Provides base classes and functions."""
 
 import heapq
 import queue
@@ -8,6 +8,8 @@ from concurrent import futures
 
 
 class ScheduledFuture(futures.Future):
+    """TBW"""
+
     pass
 
 

@@ -1,4 +1,4 @@
-"""Provides ScheduledProcessPoolExecutor."""
+"""Provides :class:`ProcessPoolExecutor`."""
 
 from concurrent import futures
 from concurrent.futures import process
@@ -8,7 +8,7 @@ from scheduledexecutor import base, thread
 
 
 class _ScheduledFuture(base.ScheduledFuture):
-    """ScheduledProcessPoolExecutor-specific :class:`concurrent.futures.Future`."""
+    """:class:`ProcessPoolExecutor`-specific :class:`scheduledexecutor.ScheduledFuture`."""
 
     def __init__(self):
         super().__init__()
@@ -35,7 +35,7 @@ def _tf_done_callback(future: base.ScheduledFuture):
 
 
 class ProcessPoolExecutor:
-    """Implements :class:`process.ProcessPoolExecutor` to support delayed and/or recurring tasks."""
+    """Extends :class:`concurrent.futures.ProcessPoolExecutor` to enable delayed and/or recurring tasks."""
 
     def __init__(
         self, max_workers=None, mp_context=None, initializer=None, initargs=()
