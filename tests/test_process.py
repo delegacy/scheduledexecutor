@@ -13,7 +13,10 @@ from tests import testing
 
 def test_submit():
     x = random.random()
-    executor = executors.ProcessPoolExecutor()
+    executor = executors.ProcessPoolExecutor(2)
+    assert executor.pool_size == 0
+    assert executor.max_pool_size == 2
+    assert executor.queued_task_count == 0
     f = executor.submit(
         testing.echo,
         x,
@@ -22,6 +25,10 @@ def test_submit():
         tid=threading.get_ident(),
     )
     assert f.result() == x
+    assert (
+        executor.pool_size >= 1
+    )  # multiple worker processes can be spawned for Python 3.8 and below.
+    assert executor.queued_task_count == 0
 
 
 def test_schedule():
@@ -36,8 +43,12 @@ def test_schedule():
         pid=os.getpid(),
         tid=threading.get_ident(),
     )
+    assert executor.pool_size == 0
+    assert executor.queued_task_count == 1
     assert f.result() == x
     assert time.time() >= t + 1.0
+    assert executor.pool_size >= 1
+    assert executor.queued_task_count == 0
 
 
 def test_schedule_should_raise_when_negative_delay():
