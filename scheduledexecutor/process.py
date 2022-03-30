@@ -121,3 +121,19 @@ class ProcessPoolExecutor:
 
     def submit(self, fn: Callable, *args, **kwargs) -> futures.Future:
         return self.schedule(0.0, fn, *args, **kwargs)
+
+    @property
+    def pool_size(self):
+        # pylint:disable=protected-access
+        return len(self._process_executor._processes)
+
+    @property
+    def max_pool_size(self):
+        # pylint:disable=protected-access
+        return self._process_executor._max_workers
+
+    @property
+    def queued_task_count(self):
+        return self._thread_executor.queued_task_count + len(
+            self._process_executor._pending_work_items  # pylint:disable=protected-access
+        )

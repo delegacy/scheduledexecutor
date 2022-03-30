@@ -170,3 +170,16 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
 
     def submit(self, fn: Callable, *args, **kwargs) -> base.ScheduledFuture:
         return self.schedule(0.0, fn, *args, **kwargs)
+
+    @property
+    def pool_size(self):
+        return len(self._threads)
+
+    @property
+    def max_pool_size(self):
+        return self._max_workers
+
+    @property
+    def queued_task_count(self):
+        # pylint:disable=protected-access
+        return self._work_queue._qsize()
