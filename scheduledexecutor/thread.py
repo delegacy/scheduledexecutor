@@ -99,6 +99,8 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
 
         self._work_queue: queue.Queue = base.DelayQueue()
 
+        self.task_decorator: Optional[Callable[[Callable], Callable]] = None
+
     def _delayed_execute(self, work_item: _ScheduledWorkItem) -> None:
         self._work_queue.put(work_item)
         self._adjust_thread_count()
@@ -136,7 +138,9 @@ class ThreadPoolExecutor(futures.ThreadPoolExecutor):
             f = _ScheduledFuture()
             w = _ScheduledWorkItem(
                 f,
-                fn,
+                fn
+                if self.task_decorator is None
+                else self.task_decorator(fn),  # pylint:disable=not-callable
                 args,
                 kwargs,
                 executor=self,

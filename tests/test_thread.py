@@ -1,5 +1,6 @@
-"""Tests ScheduledThreadPoolExecutor."""
+"""Tests ThreadPoolExecutor."""
 
+import functools
 import os
 import random
 import threading
@@ -22,6 +23,31 @@ def test_submit():
         tid=threading.get_ident(),
     )
     assert f.result() == x
+
+
+def test_submit_with_task_decorator():
+    def make_task_decorator(offset):
+        def task_decorator(fn):
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                return fn(*args, **kwargs) + offset
+
+            return wrapper
+
+        return task_decorator
+
+    x = random.random()
+    y = random.random()
+    executor = executors.ThreadPoolExecutor()
+    executor.task_decorator = make_task_decorator(y)
+    f = executor.submit(
+        testing.echo,
+        x,
+        mode=testing.TestMode.THREAD,
+        pid=os.getpid(),
+        tid=threading.get_ident(),
+    )
+    assert f.result() == x + y
 
 
 def test_schedule():

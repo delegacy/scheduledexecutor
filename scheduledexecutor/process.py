@@ -46,7 +46,7 @@ class ProcessPoolExecutor:
             process.ProcessPoolExecutor(max_workers, mp_context, initializer, initargs)
         )
 
-    def _decorate_task(
+    def _make_task(
         self,
         future: base.ScheduledFuture,
         is_periodic: bool,
@@ -78,7 +78,7 @@ class ProcessPoolExecutor:
 
         sf = _ScheduledFuture()
         sf.future = self._thread_executor.schedule(
-            delay, self._decorate_task(sf, False, fn, args, kwargs)
+            delay, self._make_task(sf, False, fn, args, kwargs)
         )
         sf.future.add_done_callback(_tf_done_callback(sf))
 
@@ -90,7 +90,7 @@ class ProcessPoolExecutor:
 
         sf = _ScheduledFuture()
         sf.future = self._thread_executor.schedule_at_fixed_rate(
-            initial_delay, period, self._decorate_task(sf, True, fn, args, kwargs)
+            initial_delay, period, self._make_task(sf, True, fn, args, kwargs)
         )
         sf.future.add_done_callback(_tf_done_callback(sf))
 
